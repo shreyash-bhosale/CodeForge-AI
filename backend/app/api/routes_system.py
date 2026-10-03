@@ -2,16 +2,23 @@ import shutil
 from fastapi import APIRouter
 from app.config import settings
 from app.tools.registry import tool_registry
+from app.models.database import check_db_connection
 
 router = APIRouter(prefix="/system", tags=["System"])
 
 @router.get("/status")
 def get_system_status():
     docker_available = shutil.which("docker") is not None
+    db_check = check_db_connection()
     return {
-        "status": "healthy",
+        "status": "healthy" if db_check["status"] == "connected" else "degraded",
         "app_name": settings.APP_NAME,
-        "database": "connected (SQLite+SQLAlchemy)",
+        "database": f"{db_check['status']} ({db_check['dialect'].upper()})",
+        "database_details": {
+            "dialect": db_check["dialect"],
+            "status": db_check["status"],
+            "latency_ms": db_check["latency_ms"]
+        },
         "ai_provider": settings.LLM_PROVIDER,
         "models": {
             "planner": settings.PLANNER_MODEL,

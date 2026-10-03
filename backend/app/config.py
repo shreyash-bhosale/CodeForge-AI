@@ -12,13 +12,27 @@ class Settings(BaseSettings):
     SANDBOX_DIR: Path = BASE_DIR / "sandboxes"
     SAMPLE_REPO_DIR: Path = BASE_DIR / "sample_repo"
     # Database & Cache
-    DB_URL: str = "sqlite+aiosqlite:///./data/codeforge.db"
+    DB_URL: str = ""
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
 
     # Application URLs
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
+
+    @property
+    def resolved_database_url(self) -> str:
+        raw = (self.DATABASE_URL or self.DB_URL or "").strip()
+        if not raw or "codeforge.db" in raw and "sqlite" in raw:
+            return f"sqlite:///{self.DATA_DIR}/codeforge.db"
+        if raw.startswith("postgres://"):
+            return "postgresql://" + raw[len("postgres://"):]
+        return raw
+
+    @property
+    def is_postgres(self) -> bool:
+        url = self.resolved_database_url.lower()
+        return url.startswith("postgresql://") or url.startswith("postgres://")
     
     # LLM Settings & Provider Selection
     GEMINI_API_KEY: str = ""

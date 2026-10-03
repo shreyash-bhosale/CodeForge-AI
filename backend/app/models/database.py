@@ -112,13 +112,96 @@ class TestRunModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Database Engine & Session setup
-db_url = settings.DATABASE_URL or f"sqlite:///{settings.DATA_DIR}/codeforge.db"
-connect_args = {"check_same_thread": False} if "sqlite" in db_url else {}
-engine = create_engine(
-    db_url,
-    connect_args=connect_args
-)
+import logging
+import time
+from sqlalchemy import text
+
+logger = logging.getLogger("codeforge.database")
+
+def validate_database_url(url: str) -> None:
+    """
+    Validates the configured database connection URL scheme.
+    Raises ValueError with actionable instructions if the scheme is unrecognized.
+    """
+    if not url:
+        return
+    valid_prefixes = ("postgresql://", "postgres://", "postgresql+psycopg2://", "sqlite://")
+    if not any(url.lower().startswith(p) for p in valid_prefixes):
+        scheme = url.split("://")[0] if "://" in url else "unknown"
+        raise ValueError(
+            f"Invalid DATABASE_URL scheme '{scheme}://'. "
+            "Supported database schemes for CodeForge AI are PostgreSQL ('postgresql://') "
+            "for Supabase/managed cloud databases, or SQLite ('sqlite:///')."
+        )
+
+db_url = settings.resolved_database_url
+validate_database_url(db_url)
+
+if settings.is_postgres:
+    # Production-ready PostgreSQL connection pooling for Supabase / Cloud Postgres
+    engine = create_engine(
+        db_url,
+        pool_size=10,
+        max_overflow=20,
+        pool_timeout=30,
+        pool_recycle=300,
+        pool_pre_ping=True
+    )
+else:
+    # Local developer fallback: SQLite
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def check_db_connection() -> dict:
+    """
+    Performs a lightweight connectivity check against the active database.
+    Returns status, dialect, latency in ms, and any error message without exposing credentials.
+    """
+    start_time = time.perf_counter()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        return {
+            "status": "connected",
+            "dialect": engine.dialect.name,
+            "latency_ms": latency_ms,
+            "error": None
+        }
+    except Exception as e:
+        latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        error_msg = str(e)
+        logger.error(f"Database health check failed: {error_msg}")
+        return {
+            "status": "error",
+            "dialect": engine.dialect.name,
+            "latency_ms": latency_ms,
+            "error": error_msg
+        }
+
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    """
+    Initializes and verifies the database schema.
+    Creates all missing tables if they do not exist.
+    """
+    try:
+        check = check_db_connection()
+        if check["status"] != "connected":
+            logger.warning(
+                f"Initial database probe encountered an error on dialect '{check['dialect']}': {check['error']}. "
+                "Ensure DATABASE_URL is reachable and credentials are valid."
+            )
+        Base.metadata.create_all(bind=engine)
+        logger.info(f"Database schema initialized successfully (Dialect: {engine.dialect.name}).")
+    except Exception as err:
+        logger.error(
+            f"Failed to initialize database schema: {err}. "
+            "If using Supabase/PostgreSQL, verify your host, credentials, SSL mode, and firewall settings."
+        )
+        raise
+
