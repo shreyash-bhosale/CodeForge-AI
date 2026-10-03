@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Settings,
   Cpu,
@@ -37,6 +37,24 @@ export default function SettingsPage() {
   const [commandTimeout, setCommandTimeout] = useState(60);
   const [requireApproval, setRequireApproval] = useState(false);
   const [networkPolicy, setNetworkPolicy] = useState("restricted");
+
+  useEffect(() => {
+    async function loadSystemStatus() {
+      try {
+        const res = await fetch("http://localhost:8000/api/system/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ai_provider) setProvider(data.ai_provider);
+          if (data.models?.planner) setModel(data.models.planner);
+          if (data.sandbox?.timeout_seconds) setCommandTimeout(data.sandbox.timeout_seconds);
+          if (data.sandbox?.network_policy) setNetworkPolicy(data.sandbox.network_policy.toLowerCase());
+        }
+      } catch (err) {
+        console.error("Failed to load system settings:", err);
+      }
+    }
+    loadSystemStatus();
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();

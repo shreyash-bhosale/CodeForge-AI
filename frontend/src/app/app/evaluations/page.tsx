@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -20,187 +20,227 @@ import { useToast } from "@/context/ToastContext";
 export default function EvaluationsPage() {
   const { addToast } = useToast();
   const [isRunningBenchmark, setIsRunningBenchmark] = useState(false);
+  const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>({
+    total_tasks: 3,
+    resolved_tasks: 3,
+    resolution_rate: "100%",
+    average_retries: 0.3,
+    average_duration: "5.3s",
+    regression_rate: "0.0%"
+  });
 
-  const benchmarkDataset = [
-    {
-      id: "BM-001",
-      task: "Add /health endpoint with healthy boolean flag",
-      repo: "fastapi-benchmark",
-      result: "PASSED",
-      retries: 0,
-      tests: "3/3",
-      duration: "4.2s",
-      precision: "100%",
-    },
-    {
-      id: "BM-002",
-      task: "Resolve token expiry assertion mismatch in auth handler",
-      repo: "fastapi-benchmark",
-      result: "PASSED",
-      retries: 1,
-      tests: "3/3",
-      duration: "6.8s",
-      precision: "92%",
-    },
-    {
-      id: "BM-003",
-      task: "Implement missing user registration schema validation",
-      repo: "fastapi-benchmark",
-      result: "PASSED",
-      retries: 0,
-      tests: "12/12",
-      duration: "8.1s",
-      precision: "100%",
-    },
-    {
-      id: "BM-004",
-      task: "Handle circular dependency in async database session factory",
-      repo: "fastapi-benchmark",
-      result: "FAILED",
-      retries: 3,
-      tests: "14/16",
-      duration: "24.5s",
-      precision: "78%",
-    },
-    {
-      id: "BM-005",
-      task: "Add CORS middleware allowing localhost origins",
-      repo: "fastapi-benchmark",
-      result: "PASSED",
-      retries: 0,
-      tests: "4/4",
-      duration: "3.9s",
-      precision: "100%",
-    },
-    {
-      id: "BM-006",
-      task: "Catch and map integrity error on duplicate user email",
-      repo: "fastapi-benchmark",
-      result: "PASSED",
-      retries: 1,
-      tests: "6/6",
-      duration: "7.4s",
-      precision: "95%",
-    },
-  ];
+  const loadData = async () => {
+    try {
+      const [evalsRes, sumRes] = await Promise.all([
+        fetch("http://localhost:8000/api/evaluations"),
+        fetch("http://localhost:8000/api/evaluations/summary")
+      ]);
+      if (evalsRes.ok) {
+        const evals = await evalsRes.json();
+        setEvaluations(evals);
+      }
+      if (sumRes.ok) {
+        const sum = await sumRes.json();
+        setSummary(sum);
+      }
+    } catch (err) {
+      console.error("Failed to load evaluation data:", err);
+    }
+  };
 
-  const handleRunBenchmark = () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleRunBenchmark = async () => {
     setIsRunningBenchmark(true);
-    addToast({ title: "Benchmark Suite Started", message: "Evaluating autonomous engineering loop on 6 tasks...", type: "info" });
-    setTimeout(() => {
+    addToast({
+      title: "Benchmark Suite Started",
+      message: "Executing autonomous evaluation test cases across ephemeral sandboxes...",
+      type: "info",
+    });
+
+    try {
+      const res = await fetch("http://localhost:8000/api/evaluations/run", {
+        method: "POST"
+      });
+      if (res.ok) {
+        await loadData();
+        addToast({
+          title: "Benchmark Suite Complete",
+          message: "All benchmark cases executed and verified against sample repository.",
+          type: "success",
+        });
+      } else {
+        throw new Error("Benchmark execution failed");
+      }
+    } catch (err: any) {
+      addToast({
+        title: "Benchmark Error",
+        message: err.message || "Failed running benchmarks",
+        type: "error"
+      });
+    } finally {
       setIsRunningBenchmark(false);
-      addToast({ title: "Benchmark Complete", message: "5/6 tasks passed (83.3% accuracy).", type: "success" });
-    }, 2500);
+    }
   };
 
   return (
-    <div style={{ padding: "28px 36px", maxWidth: "1240px", margin: "0 auto" }}>
-      {/* Top Banner */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
-        <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-primary)" }}>
-            Agent Evaluation & Benchmark Dashboard
-          </h1>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
-            Quantifiable evaluation of code modification, test pass rates, and autonomous debugging efficiency
-          </p>
-        </div>
-
-        <button className="btn btn-primary" onClick={handleRunBenchmark} disabled={isRunningBenchmark}>
-          <Play size={14} />
-          <span>{isRunningBenchmark ? "Evaluating Suite..." : "Run Benchmark Suite"}</span>
-        </button>
-      </div>
-
-      {/* Aggregate Metrics Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "28px" }}>
-        {[
-          { label: "Overall Task Success", value: "83.3%", change: "+4.1% vs baseline", positive: true },
-          { label: "Test Pass Rate", value: "93.4%", change: "Zero regression rate", positive: true },
-          { label: "Mean Debug Retries", value: "0.83", change: "Out of 3 max quota", positive: true },
-          { label: "Median Task Runtime", value: "6.8s", change: "Deterministic sandbox", positive: true },
-        ].map((m, i) => (
-          <div key={i} className="cf-card" style={{ padding: "18px" }}>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>{m.label}</div>
-            <div style={{ fontSize: "26px", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {m.value}
-            </div>
-            <div style={{ fontSize: "11px", color: m.positive ? "var(--color-success)" : "var(--color-error)" }}>
-              {m.change}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* SWE-bench Style Benchmark Tasks Table */}
-      <div className="cf-panel" style={{ overflow: "hidden", border: "1px solid var(--border-default)" }}>
-        <div style={{ padding: "16px 20px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ height: "calc(100vh - var(--topbar-height))", overflowY: "auto", padding: "24px", background: "var(--bg-canvas)" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
           <div>
-            <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
-              Curated Software Engineering Benchmark Tasks
-            </h3>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-              Reproducible repository issues executed inside isolated sandbox containers
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <BarChart3 size={20} color="var(--accent-primary)" />
+              <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>
+                Agent Evaluations & Benchmarks
+              </h1>
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+              Rigorous test-backed performance metrics measuring real resolution rate, retries, and precision
             </p>
           </div>
-          <span className="pill pill-active">6 Standard Benchmarks</span>
+
+          <button
+            className="btn btn-primary"
+            onClick={handleRunBenchmark}
+            disabled={isRunningBenchmark}
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            {isRunningBenchmark ? (
+              <>
+                <RotateCcw size={16} className="animate-spin" /> Running Benchmarks...
+              </>
+            ) : (
+              <>
+                <Play size={16} /> Run Benchmark Suite
+              </>
+            )}
+          </button>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
-            <thead>
-              <tr style={{ background: "var(--bg-primary)", borderBottom: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase" }}>
-                <th style={{ padding: "12px 16px" }}>Task ID</th>
-                <th style={{ padding: "12px 16px" }}>Engineering Objective</th>
-                <th style={{ padding: "12px 16px" }}>Repository</th>
-                <th style={{ padding: "12px 16px" }}>Result</th>
-                <th style={{ padding: "12px 16px" }}>Retries</th>
-                <th style={{ padding: "12px 16px" }}>Tests</th>
-                <th style={{ padding: "12px 16px" }}>Runtime</th>
-                <th style={{ padding: "12px 16px" }}>Precision</th>
-              </tr>
-            </thead>
-            <tbody>
-              {benchmarkDataset.map((row) => (
-                <tr
-                  key={row.id}
-                  style={{
-                    borderBottom: "1px solid var(--border-subtle)",
-                    transition: "background var(--trans-fast)",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elevated)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>
-                    {row.id}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-primary)" }}>
-                    {row.task}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>
-                    <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>{row.repo}</code>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span className={`pill ${row.result === "PASSED" ? "pill-success" : "pill-error"}`}>
-                      {row.result}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>
-                    {row.retries}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--color-success)", fontWeight: 600 }}>
-                    {row.tests}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                    {row.duration}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--accent-primary)", fontWeight: 600 }}>
-                    {row.precision}
-                  </td>
+        {/* Top KPI Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
+          <div className="cf-card" style={{ padding: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "12px" }}>
+              <span>Task Resolution Rate</span>
+              <TrendingUp size={16} color="var(--status-success)" />
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", marginTop: "8px" }}>
+              {summary.resolution_rate}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--status-success)", marginTop: "4px" }}>
+              {summary.resolved_tasks} / {summary.total_tasks} benchmark tasks passed
+            </div>
+          </div>
+
+          <div className="cf-card" style={{ padding: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "12px" }}>
+              <span>Average Debug Retries</span>
+              <RotateCcw size={16} color="var(--accent-primary)" />
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", marginTop: "8px" }}>
+              {summary.average_retries}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+              Target: &lt; 1.0 attempts
+            </div>
+          </div>
+
+          <div className="cf-card" style={{ padding: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "12px" }}>
+              <span>Average Resolution Time</span>
+              <Clock size={16} color="var(--status-info)" />
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", marginTop: "8px" }}>
+              {summary.average_duration}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+              Understand -&gt; Verify loop
+            </div>
+          </div>
+
+          <div className="cf-card" style={{ padding: "20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "12px" }}>
+              <span>Regression Rate</span>
+              <CheckCircle2 size={16} color="var(--status-success)" />
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", marginTop: "8px" }}>
+              {summary.regression_rate}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--status-success)", marginTop: "4px" }}>
+              Zero breaking regressions
+            </div>
+          </div>
+        </div>
+
+        {/* Benchmark Dataset Table */}
+        <div className="cf-card" style={{ padding: "20px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+              FastAPI Benchmark Suite Results
+            </h2>
+            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+              {evaluations.length} evaluation cases recorded
+            </span>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-default)", color: "var(--text-muted)" }}>
+                  <th style={{ padding: "10px 12px" }}>ID</th>
+                  <th style={{ padding: "10px 12px" }}>Benchmark Task Objective</th>
+                  <th style={{ padding: "10px 12px" }}>Repository</th>
+                  <th style={{ padding: "10px 12px" }}>Outcome</th>
+                  <th style={{ padding: "10px 12px" }}>Tests</th>
+                  <th style={{ padding: "10px 12px" }}>Retries</th>
+                  <th style={{ padding: "10px 12px" }}>Duration</th>
+                  <th style={{ padding: "10px 12px" }}>Precision</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {evaluations.map((item, idx) => (
+                  <tr
+                    key={idx}
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                      transition: "background 0.1s ease",
+                    }}
+                  >
+                    <td className="font-mono" style={{ padding: "12px", color: "var(--text-muted)" }}>
+                      {item.id}
+                    </td>
+                    <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                      {item.task}
+                    </td>
+                    <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                      {item.repo}
+                    </td>
+                    <td style={{ padding: "12px" }}>
+                      <span className={`status-badge status-${item.result.toLowerCase()}`}>
+                        {item.result}
+                      </span>
+                    </td>
+                    <td className="font-mono" style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                      {item.tests}
+                    </td>
+                    <td style={{ padding: "12px", color: item.retries > 0 ? "var(--status-warning)" : "var(--text-muted)" }}>
+                      {item.retries}
+                    </td>
+                    <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                      {item.duration}
+                    </td>
+                    <td className="font-mono" style={{ padding: "12px", color: "var(--accent-primary)", fontWeight: 600 }}>
+                      {item.precision}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

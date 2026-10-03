@@ -15,18 +15,38 @@ export default function SignupPage() {
   const [password, setPassword] = useState("••••••••••••");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, full_name: name }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Registration failed");
+      }
+      const data = await res.json();
+      if (typeof window !== "undefined" && data.token) {
+        localStorage.setItem("codeforge_token", data.token);
+      }
       addToast({
         title: "Account Created",
-        message: "Welcome to CodeForge AI",
+        message: `Welcome to CodeForge AI, ${data.full_name || data.email}`,
         type: "success",
       });
       router.push("/app");
-    }, 600);
+    } catch (err: any) {
+      addToast({
+        title: "Registration Failed",
+        message: err.message || "Failed to create account",
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

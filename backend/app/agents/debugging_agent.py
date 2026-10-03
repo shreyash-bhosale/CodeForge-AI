@@ -1,9 +1,15 @@
 from pathlib import Path
 from app.schemas.agent import DebuggingFixPlan, ToolCallResult
 from app.services.llm_provider import llm_provider
-from app.tools.filesystem import read_file, write_full_file
+from app.tools.filesystem import read_file
+from app.tools.patch_engine import PatchApplier, PatchRollback
 
 class DebuggingAgent:
+    """
+    Autonomous debugging engineer. Receives failing test execution results,
+    stack traces, and exit codes, classifies the failure, and applies targeted
+    surgical repairs to the affected workspace files.
+    """
     async def analyze_and_repair(
         self,
         workspace_dir: Path,
@@ -14,15 +20,18 @@ class DebuggingAgent:
     ) -> DebuggingFixPlan:
         # Collect current content of modified files
         file_contents = {}
+        rollback = PatchRollback(workspace_dir)
         for f in modified_files:
             try:
+                rollback.capture(f)
                 file_contents[f] = read_file(workspace_dir, f)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DebuggingAgent] Error reading {f}: {e}")
 
-        fix_plan = await llm_provider.classify_and_fix_failure(
+        # Call real LLM failure classifier and repair generator
+        fix_plan: DebuggingFixPlan = await llm_provider.classify_and_fix_failure(
             task_prompt=task_prompt,
-            failing_cmd=" ".join(test_result.tool),
+            failing_cmd=" ".join(test_result.tool) if isinstance(test_result.tool, list) else str(test_result.tool),
             stdout=test_result.output or "",
             stderr=test_result.error or "",
             exit_code=test_result.exit_code or 1,
@@ -31,30 +40,28 @@ class DebuggingAgent:
             file_contents=file_contents
         )
 
-        # Apply surgical repair to fix deliberate test assertions or mismatches
-        combined_logs = (test_result.output or "") + "\n" + (test_result.error or "")
-        for fpath in modified_files:
+        # Apply generated surgical patches
+        for patch in fix_plan.patches:
             try:
-                content = read_file(workspace_dir, fpath)
-                
-                # Check for common test assertion mismatches
-                # e.g., test expected status == 'ok' or healthy == True
-                if "assert" in combined_logs.lower():
-                    if "'status': 'ok'" in combined_logs or "healthy" in combined_logs:
-                        if "/health" in content:
-                            repaired = content.replace(
-                                "return {\"status\": \"ok\", \"healthy\": True}",
-                                "return {\"status\": \"ok\", \"healthy\": True, \"version\": \"1.0.0\"}"
-                            )
-                            write_full_file(workspace_dir, fpath, repaired)
-                
-                # Syntax error or missing import fixes
-                if "nameerror" in combined_logs.lower() or "importerror" in combined_logs.lower():
-                    if "import" not in content[:100]:
-                        write_full_file(workspace_dir, fpath, "from fastapi import FastAPI\n" + content)
-                        
+                if patch.patch_type == "replace" and patch.full_content is not None:
+                    PatchApplier.apply_replacement(
+                        workspace_dir=workspace_dir,
+                        relative_path=patch.file_path,
+                        new_content=patch.full_content,
+                        validate_syntax=True
+                    )
+                elif patch.patch_type == "hunk" and patch.old_hunk and patch.new_hunk:
+                    PatchApplier.apply_hunk(
+                        workspace_dir=workspace_dir,
+                        relative_path=patch.file_path,
+                        old_hunk=patch.old_hunk,
+                        new_hunk=patch.new_hunk,
+                        validate_syntax=True
+                    )
             except Exception as e:
-                print(f"[DebuggingAgent] Error applying repair to {fpath}: {e}")
+                print(f"[DebuggingAgent] Failed to apply repair patch to {patch.file_path}: {e}")
+                rollback.rollback_all()
+                raise e
 
         return fix_plan
 

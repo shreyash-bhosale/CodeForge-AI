@@ -1,21 +1,25 @@
 import ast
 import re
 from pathlib import Path
+from typing import Dict, List, Any
 
 def parse_python_symbols(content: str) -> dict:
     symbols = {
         "classes": [],
         "functions": [],
         "imports": [],
-        "routes": []
+        "routes": [],
+        "calls": []
     }
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
+                bases = [b.id if isinstance(b, ast.Name) else str(b) for b in node.bases]
                 symbols["classes"].append({
                     "name": node.name,
-                    "lineno": node.lineno
+                    "lineno": node.lineno,
+                    "bases": bases
                 })
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 decorators = []
@@ -30,11 +34,23 @@ def parse_python_symbols(content: str) -> dict:
                 func_info = {
                     "name": node.name,
                     "lineno": node.lineno,
+                    "args": [arg.arg for arg in node.args.args],
                     "decorators": decorators
                 }
                 symbols["functions"].append(func_info)
-                if any("get" in dec or "post" in dec or "put" in dec or "delete" in dec or "patch" in dec for dec in decorators):
-                    symbols["routes"].append(func_info)
+                
+                # Detect route decorators like @app.get('/health')
+                for dec in decorators:
+                    if any(verb in dec.lower() for verb in ["get", "post", "put", "delete", "patch"]):
+                        symbols["routes"].append(func_info)
+                        break
+
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    symbols["calls"].append(node.func.id)
+                elif isinstance(node.func, ast.Attribute):
+                    symbols["calls"].append(node.func.attr)
+
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     symbols["imports"].append(alias.name)
@@ -51,24 +67,34 @@ def parse_javascript_symbols(content: str) -> dict:
         "functions": [],
         "classes": [],
         "imports": [],
-        "exports": []
+        "exports": [],
+        "interfaces": []
     }
-    # Simple regex parsing for JS/TS
-    func_pattern = re.compile(r'(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z0-9_$]+)|const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?\(')
-    class_pattern = re.compile(r'class\s+([a-zA-Z0-9_$]+)')
-    import_pattern = re.compile(r'import\s+.*?\s+from\s+[\'"](.*?)[\'"]')
     
+    # Enhanced regex parsing for JS/TS/React
+    func_pattern = re.compile(r'(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z0-9_$]+)|(?:export\s+)?const\s+([a-zA-Z0-9_$]+)\s*=\s*(?:async\s*)?\(')
+    class_pattern = re.compile(r'(?:export\s+)?class\s+([a-zA-Z0-9_$]+)')
+    interface_pattern = re.compile(r'(?:export\s+)?(?:interface|type)\s+([a-zA-Z0-9_$]+)')
+    import_pattern = re.compile(r'import\s+.*?\s+from\s+[\'"](.*?)[\'"]')
+    export_pattern = re.compile(r'export\s+(?:default\s+)?(?:const|function|class)\s+([a-zA-Z0-9_$]+)')
+
     for match in func_pattern.finditer(content):
         name = match.group(1) or match.group(2)
         if name:
             symbols["functions"].append({"name": name})
-            
+
     for match in class_pattern.finditer(content):
         symbols["classes"].append({"name": match.group(1)})
-        
+
+    for match in interface_pattern.finditer(content):
+        symbols["interfaces"].append({"name": match.group(1)})
+
     for match in import_pattern.finditer(content):
         symbols["imports"].append(match.group(1))
-        
+
+    for match in export_pattern.finditer(content):
+        symbols["exports"].append(match.group(1))
+
     return symbols
 
 def extract_file_symbols(file_path: Path) -> dict:

@@ -14,18 +14,38 @@ export default function LoginPage() {
   const [password, setPassword] = useState("••••••••••••");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Authentication failed");
+      }
+      const data = await res.json();
+      if (typeof window !== "undefined" && data.token) {
+        localStorage.setItem("codeforge_token", data.token);
+      }
       addToast({
         title: "Authenticated Successfully",
-        message: `Welcome back, ${email}`,
+        message: `Welcome back, ${data.full_name || data.email}`,
         type: "success",
       });
       router.push("/app");
-    }, 600);
+    } catch (err: any) {
+      addToast({
+        title: "Authentication Failed",
+        message: err.message || "Invalid credentials",
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

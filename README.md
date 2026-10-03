@@ -1,46 +1,89 @@
-# Codeforge AI — Autonomous AI Coding Engineer
+# CodeForge AI — Autonomous AI Coding Engineer
 
 > **Understand. Plan. Code. Test. Debug. Ship.**
 
-An agentic software-development system capable of inspecting real repositories, understanding architecture, planning changes, modifying code, executing sandboxed tests and builds, autonomously debugging failures, and generating Git-ready changes.
+An agentic software-engineering platform capable of inspecting real software repositories, understanding cross-file architecture, planning changes, synthesizing verified code patches, executing sandboxed tests and builds, diagnosing and repairing failures in an autonomous debug loop, and shipping changes through Git and GitHub.
 
 ---
 
-## ⚡ System Architecture
+## ⚡ Autonomous Engineering Loop
 
 ```text
-┌─────────────────┐
-│   UNDERSTAND    │ ➔ Repository Analyzer (Tree-sitter, AST, Framework Detection)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│      PLAN       │ ➔ Planning Agent (ImplementationPlan schema, Risk Assessment)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│    IMPLEMENT    │ ➔ Coding Agent (Surgical Patches, File Creation)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│      TEST       │ ➔ Execution Agent (Sandboxed Pytest/NPM runner)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│     OBSERVE     │ ➔ Captures exit codes, stdout, stderr
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│      REASON     │ ➔ Debugging Agent (Failure Classification & Root Cause)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│       FIX       │ ➔ Targeted Repairs (Retry loop with max limits)
-└────────┬────────┘
-         ↓
-┌─────────────────┐
-│     VERIFY      │ ➔ Verification Agent (Git Diff, Status & Engineering Report)
-└─────────────────┘
+USER REQUEST
+    ↓
+REPOSITORY DISCOVERY & UNDERSTANDING (AST + Symbol Graph)
+    ↓
+CONTEXT RETRIEVAL (Hybrid Lexical + Symbol Graph)
+    ↓
+PLANNING AGENT (ImplementationPlan Schema & Risk Assessment)
+    ↓
+SERVER-SIDE HUMAN APPROVAL GATE (Safe Mode vs. Autonomous Mode)
+    ↓
+CODING AGENT (Structured Patch Generation & AST Validation)
+    ↓
+PATCH VALIDATION & ROLLBACK SNAPSHOT
+    ↓
+SANDBOX EXECUTION AGENT (Isolated Process / Ephemeral Container)
+    ↓
+TESTING & VALIDATION (Pytest / Jest / Build Commands)
+    ↓
+FAILURE OBSERVATION & CLASSIFICATION (Observe & Reason)
+    ↓
+DEBUGGING AGENT (Targeted Fixes & Retest Loop up to Max Retries)
+    ↓
+CODE REVIEW AGENT (Security, Style, Correctness)
+    ↓
+VERIFICATION AGENT (Git Diff Metrics & Engineering Report)
+    ↓
+GIT COMMIT & PULL REQUEST GENERATION
 ```
+
+---
+
+## 🛠️ Specialized Multi-Agent Architecture
+
+1. **Repository Agent (`repository_agent.py` & `repository_graph.py`)**:
+   - Inspects directory structure, builds recursive file trees, and extracts AST symbols.
+   - Detects languages (`Python`, `TypeScript`, `JavaScript`, `Go`, `Rust`).
+   - Identifies frameworks (`FastAPI`, `Next.js`, `Express`, `React`, `Flask`).
+   - Constructs in-memory cross-file symbol and dependency graphs.
+
+2. **Planning Agent (`planner_agent.py`)**:
+   - Analyzes user prompt and retrieved repository context.
+   - Outputs strict, validated `ImplementationPlan` JSON schema.
+   - Identifies candidate files to modify/create and architectural risks.
+
+3. **Coding Agent (`coding_agent.py`)**:
+   - Calls multi-model LLM code generation (`generate_code_patch`).
+   - Applies surgical patches (`PatchApplier`) with syntax verification (`PatchValidator`).
+   - Maintains snapshot state (`PatchRollback`) for instantaneous error recovery.
+
+4. **Execution Agent (`execution_agent.py`)**:
+   - Executes deterministic validation commands with timeout protection.
+   - Sanitizes command arguments and enforces security boundaries.
+
+5. **Debugging Agent (`debugging_agent.py`)**:
+   - Classifies failures (`TEST_FAILURE`, `SYNTAX_ERROR`, `IMPORT_ERROR`, `TYPE_ERROR`).
+   - Formulates targeted repairs and re-runs the validation loop.
+
+6. **Code Review Agent (`review_agent.py`)**:
+   - Automated diff inspection checking for security vulnerabilities, wildcard imports, and style regressions.
+
+7. **Verification Agent (`verification_agent.py`)**:
+   - Compares working tree against baseline commit.
+   - Computes line-by-line diff metrics (`+lines / -lines`).
+   - Automatically commits changes to task branch (`agent/task-{id}`).
+
+---
+
+## 🔒 Security & Sandbox Guarantees
+
+- **Path Traversal Protection**: Enforced chroot boundary checking on all file read/write operations (`validate_safe_path`).
+- **Secret Protection**: `SecretScanner` and `SecretRedactor` detect and sanitize API keys, JWTs, AWS credentials, and database passwords before they reach LLM prompts or telemetry logs.
+- **Credential Guard**: Prevents automated modification of protected config files (`.env`, `credentials.json`, `id_rsa`) without human authorization.
+- **Prompt Injection Defense**: Repository source files and READMEs are tagged and isolated within `<UNTRUSTED_REPOSITORY_FILE>` boundaries to prevent indirect prompt injection.
+- **Tool Permission Registry**: Every tool is classified with permissions (`READ_ONLY`, `SAFE_WRITE`, `EXECUTION`, `GIT`) and audited in the database (`tool_calls`).
+- **Server-Side Approval Gate**: Orchestrator pauses at `AWAITING_APPROVAL` via asynchronous event when `auto_approve=False`.
 
 ---
 
@@ -55,60 +98,47 @@ An agentic software-development system capable of inspecting real repositories, 
 ```bash
 ./run_backend.sh
 ```
-*The backend runs on [http://localhost:8000](http://localhost:8000)*
-*API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)*
+*Backend runs on `http://localhost:8000`*
+*Interactive API Docs: `http://localhost:8000/docs`*
 
 ### 2. Start the Next.js Frontend
 ```bash
 cd frontend
 npm run dev
 ```
-*The web workspace runs on [http://localhost:3000](http://localhost:3000)*
+*Web Workspace runs on `http://localhost:3000`*
 
 ---
 
-## 🛠️ Specialized Agents
+## 🧪 Automated Test Suite
 
-1. **Repository Analyzer (`repository_agent.py`)**:
-   - Inspects directory structure and builds recursive file trees.
-   - Detects languages (`Python`, `TypeScript`, `JavaScript`, `Go`, `Rust`).
-   - Identifies frameworks (`FastAPI`, `Flask`, `Next.js`, `React`, `Express`).
-   - Discovers test commands (`pytest -v`, `npm test`) and entry points.
+Run the full backend automated test suite (17 comprehensive tests):
 
-2. **Planning Agent (`planner_agent.py`)**:
-   - Analyzes user prompt and retrieved repository context.
-   - Outputs strict, validated `ImplementationPlan` JSON schema.
-   - Identifies candidate files to modify/create and architectural risks.
+```bash
+PYTHONPATH=backend backend/venv/bin/pytest backend/tests/ -v
+```
 
-3. **Coding Agent (`coding_agent.py`)**:
-   - Applies surgical transformations and generates new files within workspace boundaries.
+Test coverage includes:
+- **Authentication:** `backend/tests/test_auth.py`
+- **Security & Sandboxing:** `backend/tests/test_security.py`
+- **Patch Engine & Rollback:** `backend/tests/test_patch_engine.py`
+- **Code Intelligence & AST:** `backend/tests/test_intelligence.py`
+- **Multi-Agent Operations:** `backend/tests/test_agents.py`
+- **Orchestrator Approval & Cancellation:** `backend/tests/test_orchestrator.py`
+- **Evaluation Benchmark Engine:** `backend/tests/test_evaluations.py`
 
-4. **Execution Agent (`execution_agent.py`)**:
-   - Executes deterministic validation commands with timeout protection.
-   - Prevents unsafe shell patterns (`rm -rf /`, fork bombs, etc.).
-
-5. **Debugging Agent (`debugging_agent.py`)**:
-   - Classifies failures (`TEST_FAILURE`, `SYNTAX_ERROR`, `IMPORT_ERROR`, `TYPE_ERROR`).
-   - Formulates targeted repairs and re-runs the validation loop.
-
-6. **Verification Agent (`verification_agent.py`)**:
-   - Inspects working tree modifications.
-   - Generates line-by-line Git diff metrics (`+lines / -lines`).
-   - Prepares the final engineering summary report.
+Run frontend validation:
+```bash
+cd frontend
+npx tsc --noEmit
+npm run build
+```
 
 ---
 
-## 🖥️ Web Workspace Features
+## 📊 Live Evaluation & Benchmarks
 
-- **Monaco Code Editor**: Real-time syntax highlighting for Python, TypeScript, and JavaScript with line numbers and file breadcrumbs.
-- **Git Diff Inspector**: Side-by-side view with addition (`+`) and deletion (`-`) statistics and one-click rollback.
-- **Implementation Plan Viewer**: Step-by-step checklist, verification commands, and risk assessments.
-- **Agent Activity & Telemetry**: Live Server-Sent Events (SSE) streaming with stage progress pills and terminal logs.
-
----
-
-## 🔒 Security & Sandbox Guarantees
-
-- **Path Traversal Protection**: Enforced chroot boundary checking on all file read/write operations.
-- **Sanitized Execution**: Subprocess execution via command arrays rather than raw shell strings.
-- **Strict Retry Quotas**: Hard-coded debug attempt limits (`MAX_DEBUG_ATTEMPTS = 3`) to prevent runaway loops.
+CodeForge AI includes an autonomous evaluation benchmark engine (`backend/app/evaluations/engine.py`):
+- Run benchmarks via UI (`/app/evaluations`) or API (`POST /api/evaluations/run`).
+- Ephemeral sandboxes are provisioned for each test case against `backend/sample_repo`.
+- Tracks resolution rate, average retries, duration, and regression rate in real time.

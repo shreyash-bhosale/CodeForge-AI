@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, List, Dict, Optional
 from pydantic import BaseModel, Field
 
 class ToolCallRequest(BaseModel):
@@ -45,11 +45,29 @@ class FailureClassification(BaseModel):
     root_cause: str
     suggested_fix: str
 
+class CodePatch(BaseModel):
+    file_path: str
+    patch_type: Literal["hunk", "replace", "create", "delete"] = "replace"
+    old_hunk: Optional[str] = None
+    new_hunk: Optional[str] = None
+    full_content: Optional[str] = None
+    explanation: str = ""
+
+class CodeGenerationResult(BaseModel):
+    summary: str
+    patches: List[CodePatch] = Field(default_factory=list)
+    files_to_create: List[str] = Field(default_factory=list)
+    files_to_modify: List[str] = Field(default_factory=list)
+    dependencies_to_install: List[str] = Field(default_factory=list)
+    tests_to_run: List[str] = Field(default_factory=list)
+    estimated_risk: Literal["LOW", "MEDIUM", "HIGH"] = "LOW"
+
 class DebuggingFixPlan(BaseModel):
     attempt_number: int
     classification: FailureClassification
     files_to_edit: list[str] = Field(default_factory=list)
     fix_description: str
+    patches: List[CodePatch] = Field(default_factory=list)
     actions: list[dict[str, Any]] = Field(default_factory=list)
 
 class VerificationReport(BaseModel):
@@ -61,3 +79,22 @@ class VerificationReport(BaseModel):
     modified_files: list[str] = Field(default_factory=list)
     git_diff_summary: str = ""
     suggested_next_steps: list[str] = Field(default_factory=list)
+
+class CodeReviewIssue(BaseModel):
+    file_path: str
+    line_number: Optional[int] = None
+    severity: Literal["INFO", "WARNING", "ERROR", "SECURITY"] = "INFO"
+    message: str
+
+class CodeReviewResult(BaseModel):
+    approved: bool
+    summary: str
+    issues: List[CodeReviewIssue] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    suggestions: List[str] = Field(default_factory=list)
+
+class GeneratedTest(BaseModel):
+    file_path: str
+    test_code: str
+    description: str
+    framework: str = "pytest"

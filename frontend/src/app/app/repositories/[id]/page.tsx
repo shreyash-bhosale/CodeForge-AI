@@ -594,9 +594,27 @@ export default function RepositoryWorkspacePage({ params }: { params: Promise<{ 
       {/* Approval Modal */}
       <ApprovalModal
         isOpen={isApprovalOpen}
-        onApprove={() => setIsApprovalOpen(false)}
-        onDeny={() => {
+        onApprove={async () => {
           setIsApprovalOpen(false);
+          if (currentTask) {
+            try {
+              await fetch(`${API_BASE}/tasks/${currentTask.id}/approve`, { method: "POST" });
+              addToast({ title: "Plan Approved", message: "Autonomous implementation authorized.", type: "success" });
+            } catch (err: any) {
+              addToast({ title: "Approval Error", message: err.message, type: "error" });
+            }
+          }
+        }}
+        onDeny={async () => {
+          setIsApprovalOpen(false);
+          if (currentTask) {
+            try {
+              await fetch(`${API_BASE}/tasks/${currentTask.id}/reject`, { method: "POST" });
+              addToast({ title: "Plan Rejected", message: "Task execution halted.", type: "warning" });
+            } catch (err: any) {
+              addToast({ title: "Reject Error", message: err.message, type: "error" });
+            }
+          }
           handleCancelTask();
         }}
         actionDetails={{
@@ -618,8 +636,27 @@ export default function RepositoryWorkspacePage({ params }: { params: Promise<{ 
       <PullRequestModal
         isOpen={isPROpen}
         onClose={() => setIsPROpen(false)}
-        onSubmit={(title, desc) => {
-          addToast({ title: "Pull Request Created", message: `Branch agent/task ready: ${title}`, type: "success" });
+        onSubmit={async (title, desc) => {
+          if (currentTask) {
+            try {
+              const res = await fetch(`${API_BASE}/tasks/${currentTask.id}/pr`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, description: desc }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                addToast({
+                  title: `Pull Request #${data.pr_number} Created`,
+                  message: `Branch ${data.branch} submitted to repository.`,
+                  type: "success",
+                });
+              }
+            } catch (err: any) {
+              addToast({ title: "PR Error", message: err.message, type: "error" });
+            }
+          }
+          setIsPROpen(false);
         }}
         defaultTitle={`feat: implement ${prompt}`}
         filesChangedCount={plan?.files_to_modify?.length || 1}
