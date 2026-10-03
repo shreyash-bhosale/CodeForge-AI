@@ -11,7 +11,14 @@ class Settings(BaseSettings):
     DATA_DIR: Path = BASE_DIR / "data"
     SANDBOX_DIR: Path = BASE_DIR / "sandboxes"
     SAMPLE_REPO_DIR: Path = BASE_DIR / "sample_repo"
+    # Database & Cache
     DB_URL: str = "sqlite+aiosqlite:///./data/codeforge.db"
+    DATABASE_URL: str = ""
+    REDIS_URL: str = ""
+
+    # Application URLs
+    FRONTEND_URL: str = "http://localhost:3000"
+    BACKEND_URL: str = "http://localhost:8000"
     
     # LLM Settings & Provider Selection
     GEMINI_API_KEY: str = ""
@@ -51,7 +58,7 @@ class Settings(BaseSettings):
     }
 
     class Config:
-        env_file = ".env"
+        env_file = (".env", "../.env")
         extra = "ignore"
 
 settings = Settings()

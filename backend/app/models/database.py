@@ -112,9 +112,11 @@ class TestRunModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Database Engine & Session setup
+db_url = settings.DATABASE_URL or f"sqlite:///{settings.DATA_DIR}/codeforge.db"
+connect_args = {"check_same_thread": False} if "sqlite" in db_url else {}
 engine = create_engine(
-    f"sqlite:///{settings.DATA_DIR}/codeforge.db",
-    connect_args={"check_same_thread": False}
+    db_url,
+    connect_args=connect_args
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
