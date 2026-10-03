@@ -23,10 +23,29 @@ class Settings(BaseSettings):
     @property
     def resolved_database_url(self) -> str:
         raw = (self.DATABASE_URL or self.DB_URL or "").strip()
-        if not raw or "codeforge.db" in raw and "sqlite" in raw:
+        if not raw or ("codeforge.db" in raw and "sqlite" in raw):
             return f"sqlite:///{self.DATA_DIR}/codeforge.db"
         if raw.startswith("postgres://"):
-            return "postgresql://" + raw[len("postgres://"):]
+            raw = "postgresql://" + raw[len("postgres://"):]
+
+        # Auto-sanitize angle brackets and URL-encode special chars in password if needed
+        if "://" in raw and "@" in raw:
+            try:
+                import urllib.parse
+                prefix, rest = raw.split("://", 1)
+                last_at = rest.rfind("@")
+                if last_at != -1:
+                    userinfo = rest[:last_at]
+                    hostinfo = rest[last_at + 1:]
+                    if ":" in userinfo:
+                        username, password = userinfo.split(":", 1)
+                        if password.startswith("<") and password.endswith(">"):
+                            password = password[1:-1]
+                        decoded_pwd = urllib.parse.unquote(password)
+                        encoded_pwd = urllib.parse.quote(decoded_pwd, safe="")
+                        return f"{prefix}://{username}:{encoded_pwd}@{hostinfo}"
+            except Exception:
+                pass
         return raw
 
     @property
