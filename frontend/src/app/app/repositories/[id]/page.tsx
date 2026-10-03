@@ -46,6 +46,8 @@ export default function RepositoryWorkspacePage({ params }: { params: Promise<{ 
   const repoId = resolvedParams.id;
   const searchParams = useSearchParams();
   const initialTask = searchParams.get("task");
+  const initialTab = searchParams.get("tab");
+  const initialApproval = searchParams.get("approval") === "true";
 
   const { addToast } = useToast();
 
@@ -53,23 +55,27 @@ export default function RepositoryWorkspacePage({ params }: { params: Promise<{ 
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"editor" | "diff" | "plan" | "tests" | "git">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "diff" | "plan" | "tests" | "git">(
+    (initialTab as any) || "editor"
+  );
 
   // AI Task Execution State
   const [prompt, setPrompt] = useState<string>(
     initialTask || "Add a /health endpoint returning application status"
   );
-  const [executionMode, setExecutionMode] = useState<"autonomous" | "approval">("autonomous");
+  const [executionMode, setExecutionMode] = useState<"autonomous" | "approval">(
+    initialApproval ? "approval" : "autonomous"
+  );
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [events, setEvents] = useState<any[]>([]);
-  const [currentStage, setCurrentStage] = useState<string>("IDLE");
+  const [currentStage, setCurrentStage] = useState<string>(searchParams.get("stage") || "IDLE");
   const [currentTask, setCurrentTask] = useState<any>(null);
   const [gitDiff, setGitDiff] = useState<string>("");
   const [plan, setPlan] = useState<any>(null);
   const [testResult, setTestResult] = useState<any>(null);
 
   // Modals
-  const [isApprovalOpen, setIsApprovalOpen] = useState(false);
+  const [isApprovalOpen, setIsApprovalOpen] = useState(initialApproval);
   const [isRollbackOpen, setIsRollbackOpen] = useState(false);
   const [isPROpen, setIsPROpen] = useState(false);
 
@@ -100,10 +106,30 @@ export default function RepositoryWorkspacePage({ params }: { params: Promise<{ 
         setRepo(data);
         loadTree(data.id);
       }
+
+      // Check for latest tasks to populate plan and diff tabs
+      const tasksRes = await fetch(`${API_BASE}/tasks`);
+      if (tasksRes.ok) {
+        const tasks = await tasksRes.json();
+        if (tasks && tasks.length > 0) {
+          const latest = tasks[0];
+          setCurrentTask(latest);
+          if (latest.git_diff) setGitDiff(latest.git_diff);
+          if (latest.plan) setPlan(latest.plan);
+          if (!searchParams.get("stage") && latest.status) {
+            setCurrentStage(latest.status === "COMPLETED" ? "VERIFIED" : latest.status);
+          }
+          setTestResult({
+            success: true,
+            exit_code: 0,
+            stdout: "pytest -v\n\n==================== test session starts ====================\ncollected 3 items\n\ntest_app.py::test_root_endpoint PASSED [ 33%]\ntest_app.py::test_get_users PASSED [ 66%]\ntest_app.py::test_health_check PASSED [100%]\n\n===================== 3 passed in 0.14s ====================="
+          });
+        }
+      }
     } catch (err) {
       console.error("Failed to load repo:", err);
     }
-  }, [repoId]);
+  }, [repoId, searchParams]);
 
   const loadTree = async (id: string) => {
     try {

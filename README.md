@@ -36,6 +36,8 @@ CodeForge AI combines repository intelligence, AI-powered planning, code generat
 
 </div>
 
+![CodeForge AI Workspace](docs/screenshots/01-workspace.png)
+
 ---
 
 # 📌 Table of Contents
@@ -237,109 +239,55 @@ The system is designed around **engineering execution**, not just conversational
 
 ---
 
-# 📸 Screenshots
+## 📸 Product Screenshots
 
-> Add the real screenshots captured from the CodeForge AI application to `docs/screenshots/`.
->
-> Recommended screenshot names are provided below so the README remains organized.
+### AI Engineering Workspace
 
-## 🖥️ Main Engineering Workspace
+The main CodeForge AI workspace combines repository intelligence, a code editor, and the AI software engineer into one development environment.
 
-<p align="center">
-  <img src="./docs/screenshots/workspace.png"
-       alt="CodeForge AI engineering workspace showing repository files, Monaco editor, and AI agent activity"
-       width="95%">
-</p>
+![CodeForge AI Workspace](docs/screenshots/01-workspace.png)
 
----
+### Repository Intelligence
 
-## 🤖 AI Agent Execution
+CodeForge AI analyzes the repository structure, dependencies, symbols, and relevant code before making changes.
 
-<p align="center">
-  <img src="./docs/screenshots/agent-workflow.png"
-       alt="CodeForge AI agent workflow showing understanding, planning, implementation, testing, debugging, and verification"
-       width="95%">
-</p>
+![Repository Intelligence](docs/screenshots/02-repository-intelligence.png)
 
----
+### AI Implementation Planning
 
-## 🧠 Repository Intelligence
+The planning agent converts a natural-language engineering task into a structured implementation plan with affected files and execution steps.
 
-<p align="center">
-  <img src="./docs/screenshots/repository-intelligence.png"
-       alt="CodeForge AI repository intelligence and code context interface"
-       width="95%">
-</p>
+![AI Implementation Plan](docs/screenshots/03-ai-plan.png)
 
----
+### Autonomous Agent Workflow
 
-## 📝 Implementation Plan
+The AI engineering loop moves through repository understanding, planning, implementation, testing, debugging, and verification.
 
-<p align="center">
-  <img src="./docs/screenshots/implementation-plan.png"
-       alt="CodeForge AI structured implementation plan generated for a repository task"
-       width="95%">
-</p>
+![Agent Workflow](docs/screenshots/04-agent-workflow.png)
 
----
+### Real Code Changes
 
-## 🔍 Code Diff
+Generated changes are presented as a Git-style diff before they are committed or pushed.
 
-<p align="center">
-  <img src="./docs/screenshots/code-diff.png"
-       alt="CodeForge AI Git diff viewer showing AI-generated repository changes"
-       width="95%">
-</p>
+![Code Diff](docs/screenshots/05-code-diff.png)
 
----
+### Testing & Autonomous Debugging
 
-## 🧪 Test Execution
+CodeForge AI executes tests, analyzes failures, applies fixes, and verifies the resulting changes.
 
-<p align="center">
-  <img src="./docs/screenshots/test-execution.png"
-       alt="CodeForge AI test execution interface showing test results and execution telemetry"
-       width="95%">
-</p>
+![Testing and Debugging](docs/screenshots/06-testing-debugging.png)
 
----
+### Human Approval & Git Workflow
 
-## 🐛 Autonomous Debugging
+Sensitive operations can require explicit approval while Git branches, commits, and pull requests remain visible and auditable.
 
-<p align="center">
-  <img src="./docs/screenshots/debugging.png"
-       alt="CodeForge AI debugging workflow analyzing a failed test and applying a repair"
-       width="95%">
-</p>
+![Approval and Git](docs/screenshots/07-approval-git.png)
 
----
+### Agent Evaluation
 
-## 🔐 Approval Gate
+The evaluation dashboard provides visibility into AI engineering task outcomes and execution performance.
 
-<p align="center">
-  <img src="./docs/screenshots/approval-gate.png"
-       alt="CodeForge AI human approval gate for an autonomous engineering action"
-       width="95%">
-</p>
-
----
-
-## 📊 Evaluation Dashboard
-
-<p align="center">
-  <img src="./docs/screenshots/evaluations.png"
-       alt="CodeForge AI evaluation dashboard showing benchmark execution results"
-       width="95%">
-</p>
-
----
-
-## 🧾 Agent Activity & Audit Trail
-
-<p align="center">
-  <img src="./docs/screenshots/agent-history.png"
-       alt="CodeForge AI agent execution history and tool audit trail"
-       width="95%">
-</p>
+![Agent Evaluation](docs/screenshots/08-evaluation.png)
 
 ---
 
